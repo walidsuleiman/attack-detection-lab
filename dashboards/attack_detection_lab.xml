@@ -1,0 +1,87 @@
+<dashboard version="1.1" theme="dark">
+  <label>Attack Detection Lab - Windows Security Monitoring</label>
+  <description>SIEM detections for RDP brute force, credential dumping (Mimikatz), and PowerShell reverse shell. Victim host DESKTOP-ABVS6BR, attacker 192.168.56.102 (Kali). Source: WinEventLog:Security.</description>
+  <fieldset submitButton="false">
+    <input type="time" token="tr">
+      <label>Time Range</label>
+      <default>
+        <earliest>-7d@d</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>Security Event Volume by Event Code</title>
+      <chart>
+        <search>
+          <query>index=main sourcetype=WinEventLog:Security | stats count by EventCode | sort -count</query>
+          <earliest>$tr.earliest$</earliest>
+          <latest>$tr.latest$</latest>
+        </search>
+        <option name="charting.chart">bar</option>
+        <option name="charting.legend.placement">none</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>RDP Brute Force: Failed Logons (4625) Over Time</title>
+      <chart>
+        <search>
+          <query>index=main EventCode=4625 | timechart span=5m count as failed_logons</query>
+          <earliest>$tr.earliest$</earliest>
+          <latest>$tr.latest$</latest>
+        </search>
+        <option name="charting.chart">column</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>Failed vs Successful Logons (4625 vs 4624)</title>
+      <chart>
+        <search>
+          <query>index=main (EventCode=4624 OR EventCode=4625) | timechart span=10m count by EventCode</query>
+          <earliest>$tr.earliest$</earliest>
+          <latest>$tr.latest$</latest>
+        </search>
+        <option name="charting.chart">line</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Brute Force: Source IP and Targeted Account (4625)</title>
+      <table>
+        <search>
+          <query>index=main EventCode=4625 | stats count as failed_attempts by Source_Network_Address, Account_Name, Failure_Reason | sort -failed_attempts</query>
+          <earliest>$tr.earliest$</earliest>
+          <latest>$tr.latest$</latest>
+        </search>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Credential Dumping: Mimikatz Process Creation (4688)</title>
+      <table>
+        <search>
+          <query>index=main EventCode=4688 (New_Process_Name="*mimikatz*" OR Process_Command_Line="*mimikatz*") | table _time, ComputerName, Account_Name, Creator_Process_Name, New_Process_Name, Process_Command_Line</query>
+          <earliest>$tr.earliest$</earliest>
+          <latest>$tr.latest$</latest>
+        </search>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>PowerShell Reverse Shell / Download Cradle (4688)</title>
+      <table>
+        <search>
+          <query>index=main EventCode=4688 New_Process_Name="*\\powershell.exe" (Process_Command_Line="*DownloadString*" OR Process_Command_Line="*Net.WebClient*" OR Process_Command_Line="*IEX*" OR Process_Command_Line="*TCPClient*" OR Process_Command_Line="*Net.Sockets*") | table _time, ComputerName, Account_Name, Creator_Process_Name, Process_Command_Line</query>
+          <earliest>$tr.earliest$</earliest>
+          <latest>$tr.latest$</latest>
+        </search>
+      </table>
+    </panel>
+  </row>
+</dashboard>
